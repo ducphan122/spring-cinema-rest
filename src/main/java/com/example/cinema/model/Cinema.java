@@ -1,15 +1,20 @@
 package com.example.cinema.model;
 
 import lombok.Data;
-import java.util.List;
-
-import java.util.ArrayList;
+import java.util.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Data
 public class Cinema {
     private int rows;
     private int columns;
     private List<Seat> seats;
+    @JsonIgnore
+    private int currentIncome;
+    @JsonIgnore
+    private Set<Seat> purchasedSeats;
+    @JsonIgnore
+    private Map<UUID, Seat> purchasedTickets;
 
     public Cinema(int rows, int columns) {
         this.rows = rows;
@@ -21,6 +26,8 @@ public class Cinema {
             }
         }
         this.seats = seats;
+        this.purchasedSeats = new HashSet<>();
+        this.purchasedTickets = new HashMap<>();
     }
 
     public Seat getSeat(int row, int col) {
@@ -30,4 +37,41 @@ public class Cinema {
                 .orElse(null);
     }
 
+    public boolean isValidSeat(int row, int column) {
+        return row > 0 && row <= rows && column > 0 && column <= columns;
+    }
+
+    public Seat purchaseSeat(int row, int column) {
+        Seat seat = getSeat(row, column);
+        if (seat != null && seat.isAvailable()) {
+            seat.setAvailable(false);
+            purchasedSeats.add(seat);
+            currentIncome += seat.getPrice();
+            return seat;
+        }
+        return null;
+    }
+
+    public Seat returnTicket(UUID token) {
+        Seat seat = purchasedTickets.remove(token);
+        if (seat != null) {
+            seat.setAvailable(true);
+            purchasedSeats.remove(seat);
+            currentIncome -= seat.getPrice();
+        }
+        return seat;
+    }
+
+    public void buyTicket(Seat seat, UUID token) {
+        purchasedSeats.add(seat);
+        purchasedTickets.put(token, seat);
+    }
+
+    public int getAvailableSeats() {
+        return seats.size() - purchasedSeats.size();
+    }
+
+    public int getPurchasedTicketsCount() {
+        return purchasedTickets.size();
+    }
 }

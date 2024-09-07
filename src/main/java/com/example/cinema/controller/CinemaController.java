@@ -1,6 +1,5 @@
 package com.example.cinema.controller;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,21 +10,15 @@ import lombok.NoArgsConstructor;
 import com.example.cinema.model.Cinema;
 import com.example.cinema.model.Seat;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+
+import com.example.cinema.exception.CinemaException;
+import com.example.cinema.exception.CinemaException.ErrorType;
 
 @RestController
 public class CinemaController {
     private final Cinema cinema = new Cinema(9, 9);
-    private final ConcurrentHashMap<UUID, Seat> uuidToSeatMapping = new ConcurrentHashMap<>();
-
-    // Get seat from uuid
-    public Seat getSeatFromUUID(UUID uuid) {
-        return uuidToSeatMapping.get(uuid);
-    }
 
     @Data
     @NoArgsConstructor
@@ -50,6 +43,15 @@ public class CinemaController {
         UUID token;
     }
 
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    static class StatsResponse {
+        int current_income;
+        int number_of_available_seats;
+        int number_of_purchased_tickets;
+    }
+
     private static final String OUT_OF_BOUNDS_ERROR = "The number of a row or a column is out of bounds!";
     private static final String ALREADY_PURCHASED_ERROR = "The ticket has been already purchased!";
 
@@ -60,38 +62,38 @@ public class CinemaController {
 
     @PostMapping("/purchase")
     public ResponseEntity<?> purchaseSeat(@RequestBody SeatPurchaseRequest request) {
-        if (!isValidSeat(request.getRow(), request.getColumn())) {
-            return createErrorResponse(OUT_OF_BOUNDS_ERROR);
+        if (!cinema.isValidSeat(request.getRow(), request.getColumn())) {
+            throw new CinemaException(OUT_OF_BOUNDS_ERROR, ErrorType.INVALID_SEAT);
         }
 
-        Seat seat = cinema.getSeat(request.getRow(), request.getColumn());
-        if (!seat.isAvailable()) {
-            return createErrorResponse(ALREADY_PURCHASED_ERROR);
+        Seat seat = cinema.purchaseSeat(request.getRow(), request.getColumn());
+        if (seat == null) {
+            throw new CinemaException(ALREADY_PURCHASED_ERROR, ErrorType.SEAT_ALREADY_PURCHASED);
         }
 
-        seat.setAvailable(false);
         UUID token = UUID.randomUUID();
-        uuidToSeatMapping.put(token, seat);
+        cinema.buyTicket(seat, token);
         return ResponseEntity.ok(new SeatPurchaseResponse(token, seat));
     }
 
     @PostMapping("/return")
     public ResponseEntity<?> returnTicket(@RequestBody SeatReturnRequest request) {
-        UUID token = request.getToken();
-        Seat seat = getSeatFromUUID(token);
+        Seat seat = cinema.returnTicket(request.getToken());
         if (seat != null) {
-            seat.setAvailable(true);
-            uuidToSeatMapping.remove(token);
             return ResponseEntity.ok(Map.of("returned_ticket", seat));
         }
-        return createErrorResponse("Wrong token!");
+        throw new CinemaException("Wrong token!", ErrorType.INVALID_TOKEN);
     }
 
-    private boolean isValidSeat(int row, int column) {
-        return row > 0 && row <= cinema.getRows() && column > 0 && column <= cinema.getColumns();
-    }
-
-    private ResponseEntity<?> createErrorResponse(String errorMessage) {
-        return ResponseEntity.badRequest().body(Map.of("error", errorMessage));
+    @PostMapping("/stats")
+    public ResponseEntity<?> getStats(@RequestParam(name = "password", required = false) String password) {
+        if (password != null && password.equals("super_secret")) {
+            StatsResponse stats = new StatsResponse(
+                    cinema.getCurrentIncome(),
+                    cinema.getAvailableSeats(),
+                    cinema.getPurchasedTicketsCount());
+            return ResponseEntity.ok(stats);
+        }
+        throw new CinemaException("The password is wrong!", ErrorType.INVALID_PASSWORD);
     }
 }

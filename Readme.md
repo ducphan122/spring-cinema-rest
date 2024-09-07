@@ -84,3 +84,19 @@ The request should have the token feature that identifies the ticket in the requ
         "price": 10
     }
 }
+
+## Stage 4/4:The statistics
+Objectives
+
+Implement the /stats endpoint that will handle GET requests with URL parameters. If the URL parameters contain a password key with a super_secret value, return the movie theatre statistics in the following format:
+
+{
+    "income": 0,
+    "available": 81,
+    "purchased": 0
+}
+If the parameters don't contain a password key or a wrong value has been passed, respond with a 401 status code. The response body should contain the following:
+
+{
+    "error": "The password is wrong!"
+}
