@@ -32,3 +32,32 @@ GET /seats
       }
    ]
 }
+
+## Stage 2/4:Take your seat
+GET /seats
+The ticket price is determined by a row number. If the row number is less or equal to 4, set the price at 10. All other rows cost 8 per seat.
+{
+   "rows": 9,
+   "columns": 9,
+   "seats": [
+      {
+         "row": 1,
+         "column": 1,
+         "price": 10
+      }
+   ]
+}
+
+POST /purchase
+{
+   "row": 1,
+   "column": 1
+}
+response
+{
+    "row": 5,
+    "column": 7,
+    "price": 8
+}
+If the seat is taken, respond with a 400 (Bad Request) status code and the message "The ticket has been already purchased!"
+If users pass a wrong row/column number, respond with a 400 (Bad Request) status code and the message "The number of a row or a column is out of bounds!"
