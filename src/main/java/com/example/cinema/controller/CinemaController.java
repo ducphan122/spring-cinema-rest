@@ -14,10 +14,18 @@ import com.example.cinema.model.Seat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 public class CinemaController {
     private final Cinema cinema = new Cinema(9, 9);
+    private final ConcurrentHashMap<UUID, Seat> uuidToSeatMapping = new ConcurrentHashMap<>();
+
+    // Get seat from uuid
+    public Seat getSeatFromUUID(UUID uuid) {
+        return uuidToSeatMapping.get(uuid);
+    }
 
     @Data
     @NoArgsConstructor
@@ -31,7 +39,15 @@ public class CinemaController {
     @NoArgsConstructor
     @AllArgsConstructor
     static class SeatPurchaseResponse {
+        UUID token;
         Seat ticket;
+    }
+
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    static class SeatReturnRequest {
+        UUID token;
     }
 
     private static final String OUT_OF_BOUNDS_ERROR = "The number of a row or a column is out of bounds!";
@@ -54,7 +70,21 @@ public class CinemaController {
         }
 
         seat.setAvailable(false);
-        return ResponseEntity.ok(new SeatPurchaseResponse(seat));
+        UUID token = UUID.randomUUID();
+        uuidToSeatMapping.put(token, seat);
+        return ResponseEntity.ok(new SeatPurchaseResponse(token, seat));
+    }
+
+    @PostMapping("/return")
+    public ResponseEntity<?> returnTicket(@RequestBody SeatReturnRequest request) {
+        UUID token = request.getToken();
+        Seat seat = getSeatFromUUID(token);
+        if (seat != null) {
+            seat.setAvailable(true);
+            uuidToSeatMapping.remove(token);
+            return ResponseEntity.ok(Map.of("returned_ticket", seat));
+        }
+        return createErrorResponse("Wrong token!");
     }
 
     private boolean isValidSeat(int row, int column) {

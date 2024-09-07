@@ -61,3 +61,26 @@ response
 }
 If the seat is taken, respond with a 400 (Bad Request) status code and the message "The ticket has been already purchased!"
 If users pass a wrong row/column number, respond with a 400 (Bad Request) status code and the message "The number of a row or a column is out of bounds!"
+
+## Stage 3/4:A change of plans
+- Change the JSON response when a customer purchases a ticket by making a POST request to the /purchase endpoint. Turn it into the following format:
+
+{
+    "token": "00ae15f2-1ab6-4a02-a01f-07810b42c0ee",
+    "ticket": {
+        "row": 1,
+        "column": 1,
+        "price": 10
+    }
+}
+- Implement the /return endpoint, which will handle POST requests and allow customers to refund their tickets.
+
+The request should have the token feature that identifies the ticket in the request body. Once you have the token, you need to identify the ticket it relates to and mark it as available. The response body should be as follows:
+
+{
+    "ticket": {
+        "row": 1,
+        "column": 1,
+        "price": 10
+    }
+}
